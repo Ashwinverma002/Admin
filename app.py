@@ -14,7 +14,7 @@ AUTH_SECRET = os.environ.get("PANEL_SECRET", "change_this_secret_string_2025")
 GAME_NAME   = os.environ.get("PANEL_GAME",   "bgmi")
 DB_PATH     = os.environ.get("PANEL_DB",     "panel.db")
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="Templates", static_folder="Static")
 app.secret_key = os.environ.get("PANEL_SESSION", "change_session_secret_xyz")
 
 
