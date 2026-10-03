@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Logs{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Logs</h1>
+
+<form class="filters" method="get">
+  <input type="text" name="action" placeholder="auth_ok, auth_fail…" value="{{ action_filter }}">
+  <button class="btn" type="submit">Filter</button>
+</form>
+
+<div class="card">
+  <div class="log-list">
+    {% for r in logs %}
+    <div class="log-item">
+      <span class="pill pill-{{ 'ok' if 'ok' in r['action'] or 'create' in r['action'] else ('danger' if 'fail' in r['action'] or 'ban' in r['action'] else 'muted') }}">{{ r['action'] }}</span>
+      <div class="log-body">
+        <div class="log-key mono">{{ r['key_text'] or '—' }}</div>
+        <div class="log-meta">{{ r['message'] or '' }}{% if r['ip'] %} · {{ r['ip'] }}{% endif %}</div>
+        <div class="log-time muted small">{{ fmt_ts(r['ts']) }}</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">No logs</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

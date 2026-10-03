@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New' if mode=='new' else 'Edit' }}{% endblock %}
+
+{% block content %}
+<div class="head-row">
+  <h1 class="page-title">{{ 'Create Key' if mode=='new' else 'Edit Key' }}</h1>
+  <a class="btn btn-ghost" href="{{ url_for('keys_list') }}">← Back</a>
+</div>
+
+<div class="card form-card">
+  <form method="post">
+    {% if mode == 'new' %}
+      <div class="field">
+        <label>Custom key (blank = auto)</label>
+        <input type="text" name="custom_key" placeholder="BGM-XXXXX-XXXXX-XXXXX" class="mono">
+      </div>
+    {% else %}
+      <div class="field">
+        <label>Key</label>
+        <input type="text" value="{{ key['license_key'] }}" readonly class="mono">
+      </div>
+    {% endif %}
+
+    <div class="field">
+      <label>Duration</label>
+      <div class="dur-grid">
+        <input type="number" name="duration" min="1" value="{{ 1 if mode=='new' else '' }}" placeholder="e.g. 30" class="dur-num">
+        <div class="unit-btns">
+          <label class="unit-btn"><input type="radio" name="unit" value="minutes" {% if mode=='new' %}checked{% endif %}><span>Min</span></label>
+          <label class="unit-btn"><input type="radio" name="unit" value="hours"><span>Hour</span></label>
+          <label class="unit-btn"><input type="radio" name="unit" value="days"><span>Day</span></label>
+        </div>
+      </div>
+      <div class="presets">
+        <button type="button" class="preset" data-dur="1" data-unit="minutes">1 min</button>
+        <button type="button" class="preset" data-dur="10" data-unit="minutes">10 min</button>
+        <button type="button" class="preset" data-dur="30" data-unit="minutes">30 min</button>
+        <button type="button" class="preset" data-dur="1" data-unit="hours">1 hr</button>
+        <button type="button" class="preset" data-dur="6" data-unit="hours">6 hr</button>
+        <button type="button" class="preset" data-dur="1" data-unit="days">1 day</button>
+        <button type="button" class="preset" data-dur="7" data-unit="days">7 days</button>
+        <button type="button" class="preset" data-dur="30" data-unit="days">30 days</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Max devices</label>
+      <input type="number" name="max_devices" value="{{ key['max_devices'] if key else 1 }}" min="1" max="100">
+    </div>
+
+    <div class="field">
+      <label>Note</label>
+      <input type="text" name="note" value="{{ key['note'] if key else '' }}" placeholder="e.g. sold to @user">
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary btn-lg">{{ 'Create' if mode=='new' else 'Save' }}</button>
+      <a href="{{ url_for('keys_list') }}" class="btn btn-ghost btn-lg">Cancel</a>
+    </div>
+  </form>
+</div>
+
+{% if mode == 'edit' %}
+<div class="card">
+  <div class="card-head">
+    <h2>Devices ({{ used_devices|length }})</h2>
+    <form method="post" action="{{ url_for('key_reset_devices', kid=key['id']) }}" onsubmit="return confirm('Reset all devices?')">
+      <button class="btn btn-ghost btn-sm" type="submit">Reset</button>
+    </form>
+  </div>
+  <div class="dev-list">
+    {% for d in used_devices %}
+    <div class="dev-item">
+      <div class="mono small">{{ d['hwid'] }}</div>
+      <div class="muted small">{{ d['ip'] or '—' }} · {{ fmt_ts(d['last_seen']) }}</div>
+    </div>
+    {% else %}
+    <div class="empty">No devices yet</div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<script>
+document.querySelectorAll('.preset').forEach(function(b){
+  b.addEventListener('click', function(){
+    document.querySelector('input[name="duration"]').value = b.dataset.dur;
+    document.querySelectorAll('input[name="unit"]').forEach(function(r){
+      r.checked = (r.value === b.dataset.unit);
+    });
+  });
+});
+</script>
+{% endblock %}
