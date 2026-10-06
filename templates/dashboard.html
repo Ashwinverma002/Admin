@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Dashboard</h1>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">TOTAL</div>
+    <div class="stat-value">{{ stats.total }}</div>
+  </div>
+  <div class="stat-card stat-active">
+    <div class="stat-label">ACTIVE</div>
+    <div class="stat-value">{{ stats.active }}</div>
+  </div>
+  <div class="stat-card stat-expired">
+    <div class="stat-label">EXPIRED</div>
+    <div class="stat-value">{{ stats.expired }}</div>
+  </div>
+  <div class="stat-card stat-banned">
+    <div class="stat-label">BANNED</div>
+    <div class="stat-value">{{ stats.banned }}</div>
+  </div>
+  <div class="stat-card stat-devices">
+    <div class="stat-label">DEVICES 1H</div>
+    <div class="stat-value">{{ stats.devices }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Recent activity</h2>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('logs_view') }}">All →</a>
+  </div>
+
+  <div class="log-list">
+    {% for r in recent %}
+    <div class="log-item">
+      <span class="pill pill-{{ 'ok' if 'ok' in r['action'] or 'create' in r['action'] else ('danger' if 'fail' in r['action'] or 'ban' in r['action'] else 'muted') }}">{{ r['action'] }}</span>
+      <div class="log-body">
+        <div class="log-key mono">{{ r['key_text'] or '—' }}</div>
+        <div class="log-meta">{{ r['message'] or '' }} · {{ fmt_ts(r['ts']) }}</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">No activity yet</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
