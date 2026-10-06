@@ -29,6 +29,7 @@
     </div>
     <div class="key-info">
       <div><span class="lbl">Expires</span><span class="val">{{ k.expires }}</span></div>
+      <div><span class="lbl">Time left</span><span class="val">{{ human_left(k.expires_at) }}</span></div>
       <div><span class="lbl">Devices</span><span class="val">{{ k.used_devices }}/{{ k.max_devices }}</span></div>
       {% if k.note %}<div><span class="lbl">Note</span><span class="val">{{ k.note }}</span></div>{% endif %}
     </div>
