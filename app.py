@@ -14,7 +14,7 @@ AUTH_SECRET = os.environ.get("PANEL_SECRET", "change_this_secret_string_2025")
 GAME_NAME   = os.environ.get("PANEL_GAME",   "bgmi")
 DB_PATH     = os.environ.get("PANEL_DB",     "panel.db")
 
-app = Flask(__name__, template_folder="Templates", static_folder="Static")
+app = Flask(__name__)
 app.secret_key = os.environ.get("PANEL_SESSION", "change_session_secret_xyz")
 
 
@@ -231,7 +231,12 @@ def key_new():
         if dur is None:
             flash("Invalid duration", "error")
             return redirect(url_for("key_new"))
-        max_dev = int(request.form.get("max_devices", "1") or 1)
+        try:
+            max_dev = int(request.form.get("max_devices", "1") or 1)
+        except ValueError:
+            max_dev = 1
+        if max_dev < 1:
+            max_dev = 1
         note = request.form.get("note", "").strip()
         custom = request.form.get("custom_key", "").strip()
         k = custom if custom else gen_key()
@@ -263,7 +268,12 @@ def key_edit(kid):
         return redirect(url_for("keys_list"))
 
     if request.method == "POST":
-        max_dev = int(request.form.get("max_devices", str(row["max_devices"])) or 1)
+        try:
+            max_dev = int(request.form.get("max_devices", str(row["max_devices"])) or 1)
+        except ValueError:
+            max_dev = row["max_devices"]
+        if max_dev < 1:
+            max_dev = 1
         note = request.form.get("note", "").strip()
         dur = _parse_duration(request.form)
         expires = row["expires_at"]
@@ -407,6 +417,16 @@ def api_auth():
 @app.route("/api/ping")
 def api_ping():
     return jsonify({"ok": True, "ts": int(time.time())})
+
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("error.html", code=404, msg="Page not found"), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    app.logger.exception("Unhandled error: %s", e)
+    return render_template("error.html", code=500, msg="Something went wrong"), 500
 
 
 if __name__ == "__main__":
