@@ -2,49 +2,372 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1 class="page-title">Dashboard</h1>
 
-<div class="stat-grid">
-  <div class="stat-card">
-    <div class="stat-label">TOTAL</div>
-    <div class="stat-value">{{ stats.total }}</div>
+<!-- HEADER -->
+<div class="mb-5 flex items-end justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-extrabold tracking-tight">Dashboard</h1>
+    <p class="text-sm text-white/45 mt-1">Real-time overview of your license system</p>
   </div>
-  <div class="stat-card stat-active">
-    <div class="stat-label">ACTIVE</div>
-    <div class="stat-value">{{ stats.active }}</div>
-  </div>
-  <div class="stat-card stat-expired">
-    <div class="stat-label">EXPIRED</div>
-    <div class="stat-value">{{ stats.expired }}</div>
-  </div>
-  <div class="stat-card stat-banned">
-    <div class="stat-label">BANNED</div>
-    <div class="stat-value">{{ stats.banned }}</div>
-  </div>
-  <div class="stat-card stat-devices">
-    <div class="stat-label">DEVICES 1H</div>
-    <div class="stat-value">{{ stats.devices }}</div>
-  </div>
+  <a href="{{ url_for('key_new') }}"
+     class="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl
+            bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500
+            text-sm font-semibold shadow-lg shadow-violet-600/30 transition">
+    <i class="fa-solid fa-plus text-xs"></i> New Key
+  </a>
 </div>
 
-<div class="card">
-  <div class="card-head">
-    <h2>Recent activity</h2>
-    <a class="btn btn-ghost btn-sm" href="{{ url_for('logs_view') }}">All →</a>
-  </div>
-
-  <div class="log-list">
-    {% for r in recent %}
-    <div class="log-item">
-      <span class="pill pill-{{ 'ok' if 'ok' in r['action'] or 'create' in r['action'] else ('danger' if 'fail' in r['action'] or 'ban' in r['action'] else 'muted') }}">{{ r['action'] }}</span>
-      <div class="log-body">
-        <div class="log-key mono">{{ r['key_text'] or '—' }}</div>
-        <div class="log-meta">{{ r['message'] or '' }} · {{ fmt_ts(r['ts']) }}</div>
+<!-- STAT CARDS -->
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+  <div class="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[.03] p-4 hover:border-white/20 transition group">
+    <div class="flex items-center justify-between mb-3">
+      <div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center">
+        <i class="fa-solid fa-key text-white/60"></i>
       </div>
     </div>
-    {% else %}
-    <div class="empty">No activity yet</div>
-    {% endfor %}
+    <div class="text-2xl font-extrabold tracking-tight">{{ stats.total }}</div>
+    <div class="text-[10px] font-semibold tracking-widest uppercase text-white/40 mt-1">Total Keys</div>
+    <div class="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/5 blur-2xl group-hover:bg-white/10 transition"></div>
+  </div>
+
+  <div class="relative overflow-hidden rounded-2xl border border-green-500/20 bg-green-500/[.06] p-4 hover:border-green-500/40 transition group">
+    <div class="flex items-center justify-between mb-3">
+      <div class="w-9 h-9 rounded-xl bg-green-500/15 flex items-center justify-center">
+        <i class="fa-solid fa-circle-check text-green-400"></i>
+      </div>
+      <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+    </div>
+    <div class="text-2xl font-extrabold tracking-tight text-green-300">{{ stats.active }}</div>
+    <div class="text-[10px] font-semibold tracking-widest uppercase text-green-400/70 mt-1">Active</div>
+    <div class="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-green-500/20 blur-2xl"></div>
+  </div>
+
+  <div class="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/[.06] p-4 hover:border-amber-500/40 transition group">
+    <div class="flex items-center justify-between mb-3">
+      <div class="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center">
+        <i class="fa-solid fa-hourglass-end text-amber-400"></i>
+      </div>
+    </div>
+    <div class="text-2xl font-extrabold tracking-tight text-amber-300">{{ stats.expired }}</div>
+    <div class="text-[10px] font-semibold tracking-widest uppercase text-amber-400/70 mt-1">Expired</div>
+    <div class="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-amber-500/20 blur-2xl"></div>
+  </div>
+
+  <div class="relative overflow-hidden rounded-2xl border border-red-500/20 bg-red-500/[.06] p-4 hover:border-red-500/40 transition group">
+    <div class="flex items-center justify-between mb-3">
+      <div class="w-9 h-9 rounded-xl bg-red-500/15 flex items-center justify-center">
+        <i class="fa-solid fa-ban text-red-400"></i>
+      </div>
+    </div>
+    <div class="text-2xl font-extrabold tracking-tight text-red-300">{{ stats.banned }}</div>
+    <div class="text-[10px] font-semibold tracking-widest uppercase text-red-400/70 mt-1">Banned</div>
+    <div class="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-red-500/20 blur-2xl"></div>
+  </div>
+
+  <div class="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-cyan-500/[.06] p-4 hover:border-cyan-500/40 transition group col-span-2 lg:col-span-1">
+    <div class="flex items-center justify-between mb-3">
+      <div class="w-9 h-9 rounded-xl bg-cyan-500/15 flex items-center justify-center">
+        <i class="fa-solid fa-mobile-screen-button text-cyan-400"></i>
+      </div>
+      <span class="text-[9px] font-bold tracking-wider uppercase text-cyan-400/70">1h</span>
+    </div>
+    <div class="text-2xl font-extrabold tracking-tight text-cyan-300">{{ stats.devices }}</div>
+    <div class="text-[10px] font-semibold tracking-widest uppercase text-cyan-400/70 mt-1">Online Devices</div>
+    <div class="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-cyan-500/20 blur-2xl"></div>
   </div>
 </div>
+
+<!-- CHARTS ROW -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+  <!-- Trend chart -->
+  <div class="lg:col-span-2 rounded-2xl border border-white/10 bg-white/[.03] overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-white/10">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center">
+          <i class="fa-solid fa-chart-line text-violet-400 text-sm"></i>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold">Activity Trend</h2>
+          <p class="text-[11px] text-white/40">Last 7 days</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 text-[11px] font-semibold">
+        <span class="flex items-center gap-1.5 text-violet-300">
+          <span class="w-2 h-2 rounded-full bg-violet-400"></span> Created
+        </span>
+        <span class="flex items-center gap-1.5 text-cyan-300">
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span> Activated
+        </span>
+      </div>
+    </div>
+    <div class="p-4" style="height: 240px;">
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Donut -->
+  <div class="rounded-2xl border border-white/10 bg-white/[.03] overflow-hidden">
+    <div class="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+      <div class="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center">
+        <i class="fa-solid fa-chart-pie text-cyan-400 text-sm"></i>
+      </div>
+      <div>
+        <h2 class="text-sm font-bold">Status Split</h2>
+        <p class="text-[11px] text-white/40">By key status</p>
+      </div>
+    </div>
+    <div class="p-4 flex items-center justify-center" style="height: 240px;">
+      <canvas id="statusChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOP KEYS + RECENT ACTIVITY -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+  <!-- Top Keys -->
+  <div class="rounded-2xl border border-white/10 bg-white/[.03] overflow-hidden">
+    <div class="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+      <div class="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
+        <i class="fa-solid fa-trophy text-amber-400 text-sm"></i>
+      </div>
+      <div>
+        <h2 class="text-sm font-bold">Top Keys</h2>
+        <p class="text-[11px] text-white/40">Most devices</p>
+      </div>
+    </div>
+    <div id="topKeys" class="divide-y divide-white/[.05]">
+      <div class="py-6 text-center text-xs text-white/30">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="lg:col-span-2 rounded-2xl border border-white/10 bg-white/[.03] overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-white/10">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center">
+          <i class="fa-solid fa-wave-square text-violet-400 text-sm"></i>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold">Recent Activity</h2>
+          <p class="text-[11px] text-white/40">Latest events</p>
+        </div>
+      </div>
+      <a href="{{ url_for('logs_view') }}"
+         class="text-xs font-semibold text-violet-300 hover:text-violet-200 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-violet-500/10 transition">
+        View all <i class="fa-solid fa-arrow-right text-[10px]"></i>
+      </a>
+    </div>
+
+    <div class="divide-y divide-white/[.05]">
+      {% for r in recent[:8] %}
+        {% set is_ok = ('ok' in r['action'] and 'fail' not in r['action']) or 'create' in r['action'] or 'login' in r['action'] %}
+        {% set is_bad = 'fail' in r['action'] or 'ban' in r['action'] or 'delete' in r['action'] %}
+        <div class="flex items-center gap-3 px-5 py-3 hover:bg-white/[.02] transition">
+          <div class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center
+            {% if is_ok %}bg-green-500/12 text-green-400
+            {% elif is_bad %}bg-red-500/12 text-red-400
+            {% else %}bg-white/5 text-white/40{% endif %}">
+            <i class="fa-solid text-xs
+              {% if 'auth_ok' in r['action'] %}fa-circle-check
+              {% elif 'auth_fail' in r['action'] %}fa-circle-xmark
+              {% elif 'ban' in r['action'] %}fa-ban
+              {% elif 'create' in r['action'] %}fa-plus
+              {% elif 'delete' in r['action'] %}fa-trash
+              {% elif 'login' in r['action'] %}fa-right-to-bracket
+              {% elif 'reset' in r['action'] %}fa-rotate
+              {% else %}fa-bolt{% endif %}"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md
+                {% if is_ok %}bg-green-500/15 text-green-400
+                {% elif is_bad %}bg-red-500/15 text-red-400
+                {% else %}bg-white/8 text-white/55{% endif %}">
+                {{ r['action'] }}
+              </span>
+              {% if r['key_text'] %}
+                <span class="text-[11px] font-mono text-white/70 truncate">{{ r['key_text'] }}</span>
+              {% endif %}
+            </div>
+            {% if r['message'] %}
+              <div class="text-[10px] text-white/35 mt-0.5 truncate">{{ r['message'] }}</div>
+            {% endif %}
+          </div>
+          <div class="shrink-0 text-[10px] text-white/30 whitespace-nowrap">
+            {{ fmt_ts(r['ts']) }}
+          </div>
+        </div>
+      {% else %}
+        <div class="py-10 text-center text-xs text-white/30">No activity yet</div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(async function(){
+  try {
+    const res = await fetch("{{ url_for('api_analytics') }}");
+    const data = await res.json();
+    renderTrend(data.days);
+    renderStatus(data.status);
+    renderTop(data.top);
+  } catch (e) {
+    console.error(e);
+  }
+})();
+
+function renderTrend(days){
+  const ctx = document.getElementById('trendChart');
+  if (!ctx) return;
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: days.map(d => d.label),
+      datasets: [
+        {
+          label: 'Created',
+          data: days.map(d => d.created),
+          borderColor: '#a78bfa',
+          backgroundColor: (c) => {
+            const g = c.chart.ctx.createLinearGradient(0, 0, 0, 240);
+            g.addColorStop(0, 'rgba(167,139,250,.35)');
+            g.addColorStop(1, 'rgba(167,139,250,0)');
+            return g;
+          },
+          borderWidth: 2.5,
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#a78bfa',
+          pointBorderColor: '#07070b',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        {
+          label: 'Activated',
+          data: days.map(d => d.activated),
+          borderColor: '#22d3ee',
+          backgroundColor: (c) => {
+            const g = c.chart.ctx.createLinearGradient(0, 0, 0, 240);
+            g.addColorStop(0, 'rgba(34,211,238,.3)');
+            g.addColorStop(1, 'rgba(34,211,238,0)');
+            return g;
+          },
+          borderWidth: 2.5,
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: '#22d3ee',
+          pointBorderColor: '#07070b',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#101624',
+          borderColor: 'rgba(255,255,255,.1)',
+          borderWidth: 1,
+          padding: 10,
+          titleColor: '#fff',
+          bodyColor: '#c7d2fe',
+          displayColors: true,
+          cornerRadius: 10,
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: 'rgba(255,255,255,.4)', font: { size: 11 } }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(255,255,255,.05)' },
+          ticks: { color: 'rgba(255,255,255,.4)', font: { size: 11 }, precision: 0 }
+        }
+      }
+    }
+  });
+}
+
+function renderStatus(s){
+  const ctx = document.getElementById('statusChart');
+  if (!ctx) return;
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Active', 'Expired', 'Banned'],
+      datasets: [{
+        data: [s.active, s.expired, s.banned],
+        backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+        borderColor: '#101624',
+        borderWidth: 3,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: 'rgba(255,255,255,.7)',
+            font: { size: 11, weight: '600' },
+            padding: 12,
+            usePointStyle: true,
+            pointStyle: 'circle',
+          }
+        },
+        tooltip: {
+          backgroundColor: '#101624',
+          borderColor: 'rgba(255,255,255,.1)',
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 10,
+        }
+      }
+    }
+  });
+}
+
+function renderTop(top){
+  const box = document.getElementById('topKeys');
+  if (!box) return;
+  if (!top || !top.length){
+    box.innerHTML = '<div class="py-8 text-center text-xs text-white/30">No data yet</div>';
+    return;
+  }
+  box.innerHTML = top.map((t, i) => {
+    const pct = t.max > 0 ? Math.min(100, Math.round((t.devices / t.max) * 100)) : 0;
+    const medals = ['text-amber-400', 'text-slate-300', 'text-orange-400', 'text-white/40', 'text-white/40'];
+    return `
+      <div class="px-5 py-3 hover:bg-white/[.02] transition">
+        <div class="flex items-center gap-3 mb-1.5">
+          <span class="w-5 text-xs font-bold ${medals[i] || 'text-white/40'}">#${i+1}</span>
+          <span class="flex-1 text-[11px] font-mono text-white/80 truncate">${t.key}</span>
+          <span class="text-[11px] font-bold text-white/60">${t.devices}<span class="text-white/25">/${t.max}</span></span>
+        </div>
+        <div class="h-1 rounded-full bg-white/5 overflow-hidden ml-8">
+          <div class="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400" style="width: ${pct}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+</script>
+
 {% endblock %}

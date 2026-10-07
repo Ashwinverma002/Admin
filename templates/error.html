@@ -3,17 +3,238 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0a0a0e">
-<title>{{ code }} · AUTH</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<meta name="theme-color" content="#07070b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<title>{{ code }} · ASHWIN</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    background: #07070b;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: hidden;
+  }
+
+  /* Aurora */
+  .aurora {
+    position: fixed; inset: -20%;
+    z-index: 0;
+    background:
+      radial-gradient(600px circle at 20% 30%, rgba(139,92,246,.28), transparent 55%),
+      radial-gradient(600px circle at 80% 70%, rgba(34,211,238,.20), transparent 55%),
+      radial-gradient(700px circle at 50% 100%, rgba(236,72,153,.12), transparent 55%);
+    filter: blur(20px);
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    0%   { transform: translate3d(0,0,0) scale(1); }
+    100% { transform: translate3d(-3%, 3%, 0) scale(1.08); }
+  }
+
+  /* Grid overlay */
+  .grid-overlay {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
+  }
+
+  /* Card */
+  .err-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    padding: 40px 32px 36px;
+    border-radius: 26px;
+    background: rgba(17, 20, 32, 0.62);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.09);
+    box-shadow:
+      0 30px 80px rgba(0,0,0,.6),
+      0 0 0 1px rgba(255,255,255,.02) inset,
+      0 1px 0 rgba(255,255,255,.08) inset;
+    text-align: center;
+    animation: rise .55s cubic-bezier(.2,.8,.2,1) both;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(24px) scale(.97); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* Gradient top border */
+  .err-card::before {
+    content: '';
+    position: absolute; inset: -1px;
+    border-radius: 26px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(139,92,246,.55), rgba(34,211,238,.35), transparent 60%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Icon bubble */
+  .err-ico {
+    width: 84px; height: 84px;
+    margin: 0 auto 22px;
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    position: relative;
+    animation: bob 3s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+  }
+
+  /* 404 (violet) */
+  .err-404 .err-ico {
+    background: linear-gradient(135deg, rgba(139,92,246,.25), rgba(99,102,241,.15));
+    border: 1px solid rgba(139,92,246,.35);
+    color: #c4b5fd;
+    box-shadow: 0 12px 40px rgba(139,92,246,.35);
+  }
+  .err-404 .err-code { color: #c4b5fd; text-shadow: 0 0 40px rgba(139,92,246,.5); }
+
+  /* 500 (red) */
+  .err-500 .err-ico {
+    background: linear-gradient(135deg, rgba(239,68,68,.25), rgba(236,72,153,.15));
+    border: 1px solid rgba(239,68,68,.35);
+    color: #fca5a5;
+    box-shadow: 0 12px 40px rgba(239,68,68,.35);
+  }
+  .err-500 .err-code { color: #fca5a5; text-shadow: 0 0 40px rgba(239,68,68,.5); }
+
+  /* Default (cyan) */
+  .err-def .err-ico {
+    background: linear-gradient(135deg, rgba(34,211,238,.22), rgba(99,102,241,.15));
+    border: 1px solid rgba(34,211,238,.35);
+    color: #67e8f9;
+    box-shadow: 0 12px 40px rgba(34,211,238,.3);
+  }
+  .err-def .err-code { color: #67e8f9; text-shadow: 0 0 40px rgba(34,211,238,.5); }
+
+  /* Big code */
+  .err-code {
+    font-size: 64px;
+    font-weight: 900;
+    letter-spacing: -3px;
+    line-height: 1;
+    margin-bottom: 8px;
+    background-clip: text;
+    -webkit-background-clip: text;
+  }
+
+  /* Title */
+  .err-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #fff;
+    letter-spacing: -0.2px;
+  }
+
+  /* Message */
+  .err-msg {
+    font-size: 13px;
+    color: rgba(255,255,255,.45);
+    margin-bottom: 26px;
+    line-height: 1.5;
+    padding: 0 8px;
+  }
+
+  /* Buttons */
+  .btn-home {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    border-radius: 13px;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    color: #fff;
+    font-weight: 700;
+    font-size: 14.5px;
+    letter-spacing: .3px;
+    text-decoration: none;
+    box-shadow: 0 12px 28px rgba(139,92,246,.4);
+    transition: all .25s ease;
+  }
+  .btn-home:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 36px rgba(139,92,246,.55);
+  }
+  .btn-home:active { transform: translateY(0); }
+
+  /* Small footer */
+  .err-foot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin-top: 20px;
+    font-size: 11px;
+    color: rgba(255,255,255,.28);
+    letter-spacing: .4px;
+  }
+  .err-foot i { color: rgba(139,92,246,.55); }
+</style>
 </head>
-<body class="login-body">
-  <div class="login-bg"></div>
-  <div class="login-card" style="text-align:center">
-    <div class="login-logo" style="margin:0 auto 20px">!</div>
-    <h1>{{ code }}</h1>
-    <p class="login-sub">{{ msg }}</p>
-    <a href="/" class="btn btn-primary btn-lg" style="margin-top:12px;display:inline-flex">Go to dashboard</a>
+<body>
+
+<div class="aurora"></div>
+<div class="grid-overlay"></div>
+
+{% if code == 404 %}
+  {% set wrap = 'err-404' %}
+  {% set icon = 'fa-compass' %}
+  {% set title = 'Page Not Found' %}
+{% elif code == 500 %}
+  {% set wrap = 'err-500' %}
+  {% set icon = 'fa-triangle-exclamation' %}
+  {% set title = 'Internal Server Error' %}
+{% else %}
+  {% set wrap = 'err-def' %}
+  {% set icon = 'fa-circle-exclamation' %}
+  {% set title = 'Something Went Wrong' %}
+{% endif %}
+
+<div class="err-card {{ wrap }}">
+  <div class="err-ico">
+    <i class="fa-solid {{ icon }}"></i>
   </div>
+
+  <div class="err-code">{{ code }}</div>
+  <div class="err-title">{{ title }}</div>
+  <div class="err-msg">{{ msg }}</div>
+
+  <a href="{{ url_for('dashboard') }}" class="btn-home">
+    <i class="fa-solid fa-house text-xs"></i>
+    Back to Dashboard
+  </a>
+
+  <div class="err-foot">
+    <i class="fa-solid fa-shield"></i> ASHWIN Panel · Secure
+  </div>
+</div>
+
 </body>
 </html>

@@ -1,94 +1,271 @@
 {% extends "base.html" %}
-{% block title %}{{ 'New' if mode=='new' else 'Edit' }}{% endblock %}
+{% block title %}{{ 'New Key' if mode=='new' else 'Edit Key' }}{% endblock %}
 
 {% block content %}
-<div class="head-row">
-  <h1 class="page-title">{{ 'Create Key' if mode=='new' else 'Edit Key' }}</h1>
-  <a class="btn btn-ghost" href="{{ url_for('keys_list') }}">← Back</a>
+
+<div class="mb-5 flex items-end justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-extrabold tracking-tight">
+      {{ 'Create License Key' if mode=='new' else 'Edit License Key' }}
+    </h1>
+    <p class="text-sm text-white/45 mt-1">
+      {% if mode=='new' %}Generate a new key with custom duration{% else %}Update expiry, devices, and notes{% endif %}
+    </p>
+  </div>
+  <a href="{{ url_for('keys_list') }}"
+     class="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[.05] hover:bg-white/10 border border-white/10 text-sm font-semibold transition">
+    <i class="fa-solid fa-arrow-left text-xs"></i> Back
+  </a>
 </div>
 
-<div class="card form-card">
-  <form method="post">
+<div class="rounded-2xl border border-white/10 bg-white/[.03] overflow-hidden mb-5">
+  <div class="h-1 bg-gradient-to-r from-violet-600 via-indigo-500 to-cyan-400"></div>
+
+  <form method="post" class="p-5 sm:p-6 space-y-5">
+
+    {% if mode == 'new' and templates %}
+    <div>
+      <label class="block text-[11px] font-bold uppercase tracking-widest text-white/50 mb-2">
+        <i class="fa-solid fa-layer-group text-violet-400 mr-1.5"></i>Quick Template
+      </label>
+      <div class="flex flex-wrap gap-2">
+        {% for t in templates %}
+          <button type="button" class="tpl-chip preset-chip"
+                  data-dur="{{ (t['duration'] // 86400) if t['duration'] >= 86400 else ((t['duration'] // 3600) if t['duration'] >= 3600 else (t['duration'] // 60)) }}"
+                  data-unit="{% if t['duration'] >= 86400 %}days{% elif t['duration'] >= 3600 %}hours{% else %}minutes{% endif %}"
+                  data-dev="{{ t['max_devices'] }}">
+            <span class="font-bold">{{ t['name'] }}</span>
+          </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     {% if mode == 'new' %}
-      <div class="field">
-        <label>Custom key (blank = auto)</label>
-        <input type="text" name="custom_key" placeholder="BGM-XXXXX-XXXXX-XXXXX" class="mono">
+      <div>
+        <label class="block text-[11px] font-bold uppercase tracking-widest text-white/50 mb-2">
+          Custom Key <span class="text-white/30 normal-case tracking-normal font-normal">(blank = auto)</span>
+        </label>
+        <div class="relative">
+          <i class="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 text-white/35 text-sm pointer-events-none"></i>
+          <input type="text" name="custom_key" placeholder="ASH-XXXXX-XXXXX-XXXXX"
+                 class="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[.04] border border-white/10 text-sm font-mono placeholder-white/25
+                        focus:outline-none focus:border-violet-500/60 focus:bg-violet-500/5 focus:ring-4 focus:ring-violet-500/10 transition">
+        </div>
       </div>
     {% else %}
-      <div class="field">
-        <label>Key</label>
-        <input type="text" value="{{ key['license_key'] }}" readonly class="mono">
+      <div>
+        <label class="block text-[11px] font-bold uppercase tracking-widest text-white/50 mb-2">License Key</label>
+        <div class="relative">
+          <i class="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 text-violet-400 text-sm pointer-events-none"></i>
+          <input type="text" value="{{ key['license_key'] }}" readonly
+                 class="w-full pl-11 pr-24 py-3 rounded-xl bg-violet-500/[.06] border border-violet-500/25 text-sm font-mono font-semibold text-violet-200 cursor-default">
+          <button type="button" data-copy="{{ key['license_key'] }}"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 text-[11px] font-semibold text-violet-300 transition flex items-center gap-1.5">
+            <i class="fa-regular fa-copy text-[10px]"></i> Copy
+          </button>
+        </div>
       </div>
     {% endif %}
 
-    <div class="field">
-      <label>Duration</label>
-      <div class="dur-grid">
-        <input type="number" name="duration" min="1" value="{{ 1 if mode=='new' else '' }}" placeholder="e.g. 30" class="dur-num">
-        <div class="unit-btns">
-          <label class="unit-btn"><input type="radio" name="unit" value="minutes" {% if mode=='new' %}checked{% endif %}><span>Min</span></label>
-          <label class="unit-btn"><input type="radio" name="unit" value="hours"><span>Hour</span></label>
-          <label class="unit-btn"><input type="radio" name="unit" value="days"><span>Day</span></label>
+    <div>
+      <label class="block text-[11px] font-bold uppercase tracking-widest text-white/50 mb-2">
+        Duration
+        {% if mode == 'edit' %}<span class="text-white/30 normal-case tracking-normal font-normal">(blank = keep current)</span>{% endif %}
+      </label>
+
+      <div class="grid grid-cols-5 gap-2 mb-3">
+        <div class="col-span-2 relative">
+          <i class="fa-solid fa-hashtag absolute left-4 top-1/2 -translate-y-1/2 text-white/35 text-xs pointer-events-none"></i>
+          <input type="number" name="duration" min="1"
+                 value="{{ 1 if mode=='new' else '' }}" placeholder="30"
+                 class="w-full pl-10 pr-3 py-3 rounded-xl bg-white/[.04] border border-white/10 text-sm font-semibold placeholder-white/25
+                        focus:outline-none focus:border-violet-500/60 focus:bg-violet-500/5 focus:ring-4 focus:ring-violet-500/10 transition">
+        </div>
+        <div class="col-span-3 grid grid-cols-3 gap-1 p-1 rounded-xl bg-white/[.04] border border-white/10">
+          {% set units = [('minutes','Min'), ('hours','Hour'), ('days','Day')] %}
+          {% for val, label in units %}
+            <label class="relative cursor-pointer">
+              <input type="radio" name="unit" value="{{ val }}" class="peer sr-only"
+                     {% if (mode=='new' and val=='minutes') or (mode=='edit' and val=='days') %}checked{% endif %}>
+              <span class="block text-center py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-white/45 transition
+                           peer-checked:bg-gradient-to-r peer-checked:from-violet-600 peer-checked:to-indigo-600 peer-checked:text-white peer-checked:shadow-md peer-checked:shadow-violet-600/25">
+                {{ label }}
+              </span>
+            </label>
+          {% endfor %}
         </div>
       </div>
-      <div class="presets">
-        <button type="button" class="preset" data-dur="1" data-unit="minutes">1 min</button>
-        <button type="button" class="preset" data-dur="10" data-unit="minutes">10 min</button>
-        <button type="button" class="preset" data-dur="30" data-unit="minutes">30 min</button>
-        <button type="button" class="preset" data-dur="1" data-unit="hours">1 hr</button>
-        <button type="button" class="preset" data-dur="6" data-unit="hours">6 hr</button>
-        <button type="button" class="preset" data-dur="1" data-unit="days">1 day</button>
-        <button type="button" class="preset" data-dur="7" data-unit="days">7 days</button>
-        <button type="button" class="preset" data-dur="30" data-unit="days">30 days</button>
+
+      <div class="flex flex-wrap gap-1.5">
+        {% set presets = [('1','minutes','1 min'),('10','minutes','10 min'),('30','minutes','30 min'),('1','hours','1 hr'),('6','hours','6 hr'),('12','hours','12 hr'),('1','days','1 day'),('7','days','7 days'),('30','days','30 days'),('90','days','90 days')] %}
+        {% for dur, unit, label in presets %}
+          <button type="button" class="preset-chip" data-dur="{{ dur }}" data-unit="{{ unit }}">{{ label }}</button>
+        {% endfor %}
       </div>
     </div>
 
-    <div class="field">
-      <label>Max devices</label>
-      <input type="number" name="max_devices" value="{{ key['max_devices'] if key else 1 }}" min="1" max="100">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-[11px] font-bold uppercase tracking-widest text-white/50 mb-2">Max Devices</label>
+        <div class="relative">
+          <i class="fa-solid fa-mobile-screen absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 text-sm pointer-events-none"></i>
+          <input type="number" name="max_devices" value="{{ key['max_devices'] if key else 1 }}" min="1" max="100"
+                 class="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[.04] border border-white/10 text-sm font-semibold
+                        focus:outline-none focus:border-cyan-500/60 focus:bg-cyan-500/5 focus:ring-4 focus:ring-cyan-500/10 transition">
+        </div>
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold uppercase tracking-widest text-white/50 mb-2">Note</label>
+        <div class="relative">
+          <i class="fa-solid fa-note-sticky absolute left-4 top-1/2 -translate-y-1/2 text-white/35 text-sm pointer-events-none"></i>
+          <input type="text" name="note" value="{{ key['note'] if key else '' }}" placeholder="e.g. sold to @user"
+                 class="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[.04] border border-white/10 text-sm placeholder-white/25
+                        focus:outline-none focus:border-violet-500/60 focus:bg-violet-500/5 focus:ring-4 focus:ring-violet-500/10 transition">
+        </div>
+      </div>
     </div>
 
-    <div class="field">
-      <label>Note</label>
-      <input type="text" name="note" value="{{ key['note'] if key else '' }}" placeholder="e.g. sold to @user">
+    <div class="flex flex-col sm:flex-row gap-3 pt-2">
+      <button type="submit"
+              class="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl
+                     bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500
+                     text-sm font-bold shadow-lg shadow-violet-600/30 transition active:scale-[.98]">
+        <i class="fa-solid {% if mode=='new' %}fa-plus{% else %}fa-check{% endif %} text-xs"></i>
+        {{ 'Create Key' if mode=='new' else 'Save Changes' }}
+      </button>
+      <a href="{{ url_for('keys_list') }}"
+         class="sm:w-32 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white/[.05] hover:bg-white/10 border border-white/10 text-sm font-semibold text-white/70 transition">
+        Cancel
+      </a>
     </div>
 
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary btn-lg">{{ 'Create' if mode=='new' else 'Save' }}</button>
-      <a href="{{ url_for('keys_list') }}" class="btn btn-ghost btn-lg">Cancel</a>
-    </div>
   </form>
 </div>
 
-{% if mode == 'edit' %}
-<div class="card">
-  <div class="card-head">
-    <h2>Devices ({{ used_devices|length }})</h2>
-    <form method="post" action="{{ url_for('key_reset_devices', kid=key['id']) }}" onsubmit="return confirm('Reset all devices?')">
-      <button class="btn btn-ghost btn-sm" type="submit">Reset</button>
+<style>
+  .preset-chip {
+    padding: 6px 12px; border-radius: 10px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    color: rgba(255,255,255,.6);
+    font-size: 11px; font-weight: 600;
+    letter-spacing: .2px; cursor: pointer;
+    transition: all .18s ease;
+  }
+  .preset-chip:hover {
+    background: rgba(139,92,246,.14);
+    border-color: rgba(139,92,246,.4);
+    color: #c4b5fd;
+    transform: translateY(-1px);
+  }
+</style>
+
+<script>
+  document.querySelectorAll('.preset-chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      const durInput = document.querySelector('input[name="duration"]');
+      if (durInput) durInput.value = chip.dataset.dur;
+      document.querySelectorAll('input[name="unit"]').forEach(function(r){
+        r.checked = (r.value === chip.dataset.unit);
+      });
+      if (chip.dataset.dev) {
+        const devInput = document.querySelector('input[name="max_devices"]');
+        if (devInput) devInput.value = chip.dataset.dev;
+      }
+    });
+  });
+</script>
+
+{% endblock %}turn confirm('Reset all devices? This cannot be undone.')">
+      <button type="submit"
+              class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl
+                     bg-red-500/10 hover:bg-red-500/20 border border-red-500/25
+                     text-xs font-semibold text-red-300 transition">
+        <i class="fa-solid fa-rotate text-[10px]"></i> Reset All
+      </button>
     </form>
+    {% endif %}
   </div>
-  <div class="dev-list">
+
+  <div class="divide-y divide-white/[.05]">
     {% for d in used_devices %}
-    <div class="dev-item">
-      <div class="mono small">{{ d['hwid'] }}</div>
-      <div class="muted small">{{ d['ip'] or '—' }} · {{ fmt_ts(d['last_seen']) }}</div>
-    </div>
+      <div class="flex items-center gap-3 px-5 py-3 hover:bg-white/[.02] transition">
+        <div class="w-9 h-9 rounded-xl bg-white/[.04] border border-white/10
+                    flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-microchip text-white/45 text-sm"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[12px] font-mono font-semibold text-white/85 truncate">{{ d['hwid'] }}</div>
+          <div class="text-[11px] text-white/40 mt-0.5 flex items-center gap-2 flex-wrap">
+            <span><i class="fa-solid fa-globe text-[9px] mr-1"></i>{{ d['ip'] or '—' }}</span>
+            <span class="text-white/20">•</span>
+            <span><i class="fa-regular fa-clock text-[9px] mr-1"></i>{{ fmt_ts(d['last_seen']) }}</span>
+          </div>
+        </div>
+        <button type="button" data-copy="{{ d['hwid'] }}"
+                class="shrink-0 w-8 h-8 rounded-lg bg-white/[.04] hover:bg-white/10 border border-white/10
+                       flex items-center justify-center text-white/40 hover:text-white transition"
+                title="Copy HWID">
+          <i class="fa-regular fa-copy text-[11px]"></i>
+        </button>
+      </div>
     {% else %}
-    <div class="empty">No devices yet</div>
+      <div class="py-14 text-center">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-white/5 flex items-center justify-center mb-3">
+          <i class="fa-solid fa-mobile-screen text-white/25 text-xl"></i>
+        </div>
+        <div class="text-sm font-semibold text-white/60">No devices yet</div>
+        <div class="text-xs text-white/35 mt-1">Devices will appear once this key is activated</div>
+      </div>
     {% endfor %}
   </div>
+
 </div>
 {% endif %}
 
+<style>
+  .preset-chip {
+    padding: 6px 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    color: rgba(255,255,255,.6);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .2px;
+    cursor: pointer;
+    transition: all .18s ease;
+  }
+  .preset-chip:hover {
+    background: rgba(139,92,246,.14);
+    border-color: rgba(139,92,246,.4);
+    color: #c4b5fd;
+    transform: translateY(-1px);
+  }
+  .preset-chip:active { transform: translateY(0); }
+</style>
+
 <script>
-document.querySelectorAll('.preset').forEach(function(b){
-  b.addEventListener('click', function(){
-    document.querySelector('input[name="duration"]').value = b.dataset.dur;
-    document.querySelectorAll('input[name="unit"]').forEach(function(r){
-      r.checked = (r.value === b.dataset.unit);
+  /* Preset chips fill duration + unit */
+  document.querySelectorAll('.preset-chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      const durInput = document.querySelector('input[name="duration"]');
+      if (durInput) durInput.value = chip.dataset.dur;
+      document.querySelectorAll('input[name="unit"]').forEach(function(r){
+        r.checked = (r.value === chip.dataset.unit);
+      });
     });
   });
-});
+
+  /* Live expiry preview (optional nicety) */
+  const durInput = document.querySelector('input[name="duration"]');
+  const unitRadios = document.querySelectorAll('input[name="unit"]');
+  function updatePreview(){
+    // nothing visual — reserved for future
+  }
+  durInput?.addEventListener('input', updatePreview);
+  unitRadios.forEach(r => r.addEventListener('change', updatePreview));
 </script>
+
 {% endblock %}

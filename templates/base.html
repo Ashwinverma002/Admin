@@ -6,38 +6,208 @@
 <meta name="theme-color" content="#07070b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<title>{% block title %}Panel{% endblock %} · AUTH</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<title>{% block title %}Panel{% endblock %} · ASHWIN</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  * { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #07070b;
+    color: #fff;
+    min-height: 100vh;
+    padding-bottom: 96px;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(500px circle at 15% 0%, rgba(139,92,246,.14), transparent 50%),
+      radial-gradient(500px circle at 85% 100%, rgba(34,211,238,.10), transparent 50%);
+  }
+  .glass { background: rgba(255,255,255,0.045); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.08); }
+  .fade-in { animation: fade .35s ease both; }
+  @keyframes fade { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #07070b; }
+  ::-webkit-scrollbar-thumb { background: #232b3d; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #303a52; }
+
+  .tabbar {
+    position: fixed; left: 50%; bottom: 14px;
+    transform: translateX(-50%);
+    z-index: 60;
+    display: flex; align-items: center; gap: 4px;
+    padding: 8px; border-radius: 22px;
+    background: rgba(15,20,32,0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 20px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.03) inset;
+    width: calc(100% - 24px);
+    max-width: 460px;
+    justify-content: space-around;
+  }
+  .tab {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 8px 4px; border-radius: 16px;
+    color: rgba(255,255,255,0.45);
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .5px;
+    transition: all .2s ease; min-width: 0;
+    cursor: pointer;
+  }
+  .tab-ico { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; }
+  .tab-ico svg { width: 20px; height: 20px; }
+  .tab-ico i { font-size: 17px; }
+  .tab:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.04); }
+  .tab.active {
+    color: #fff;
+    background: linear-gradient(135deg, rgba(139,92,246,.28), rgba(34,211,238,.14));
+    box-shadow: 0 0 22px rgba(139,92,246,.22);
+  }
+  .tab.active .tab-ico svg, .tab.active .tab-ico i { color: #a78bfa; filter: drop-shadow(0 0 6px rgba(167,139,250,.55)); }
+
+  .tab-add {
+    flex: 0 0 auto;
+    width: 54px; height: 54px; padding: 0; border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    color: #fff !important;
+    font-weight: 700;
+    box-shadow: 0 10px 26px rgba(139,92,246,.45);
+    margin: -6px 2px 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tab-add .tab-ico { font-size: 22px; }
+  .tab-add .tab-lbl { display: none; }
+  .tab-add:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(139,92,246,.6); }
+
+  /* Bottom sheet */
+  .sheet-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55);
+    backdrop-filter: blur(4px);
+    z-index: 90; opacity: 0; pointer-events: none;
+    transition: opacity .25s ease;
+  }
+  .sheet-backdrop.show { opacity: 1; pointer-events: auto; }
+
+  .sheet {
+    position: fixed; left: 50%; bottom: 0;
+    transform: translate(-50%, 100%);
+    width: 100%; max-width: 460px;
+    background: #101624;
+    border: 1px solid rgba(255,255,255,0.09);
+    border-bottom: none;
+    border-radius: 24px 24px 0 0;
+    padding: 20px 20px 32px;
+    z-index: 95;
+    transition: transform .3s cubic-bezier(.2,.8,.2,1);
+    box-shadow: 0 -20px 60px rgba(0,0,0,.6);
+  }
+  .sheet.show { transform: translate(-50%, 0); }
+  .sheet-handle {
+    width: 40px; height: 4px; border-radius: 4px;
+    background: rgba(255,255,255,.15);
+    margin: 0 auto 18px;
+  }
+  .sheet-title {
+    font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1.2px;
+    color: rgba(255,255,255,.4);
+    margin-bottom: 14px;
+  }
+  .sheet-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .sheet-item {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px; padding: 16px 8px;
+    border-radius: 16px;
+    background: rgba(255,255,255,.035);
+    border: 1px solid rgba(255,255,255,.08);
+    color: rgba(255,255,255,.75);
+    font-size: 11px; font-weight: 600;
+    transition: all .18s ease;
+    text-decoration: none;
+  }
+  .sheet-item:hover {
+    background: rgba(139,92,246,.15);
+    border-color: rgba(139,92,246,.35);
+    color: #fff; transform: translateY(-2px);
+  }
+  .sheet-item i { font-size: 20px; color: #a78bfa; }
+  .sheet-item.danger i { color: #f87171; }
+
+  .toast {
+    position: fixed; bottom: 108px; left: 50%;
+    transform: translate(-50%, 20px);
+    background: #111827; border: 1px solid rgba(255,255,255,0.1);
+    color: #fff; padding: 12px 20px; border-radius: 14px;
+    font-size: 13px; font-weight: 500;
+    opacity: 0; pointer-events: none;
+    transition: all .3s ease; z-index: 9999;
+    box-shadow: 0 20px 40px rgba(0,0,0,.5);
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+{% block head %}{% endblock %}
 </head>
 <body>
-<header class="topbar">
-  <div class="topbar-inner">
-    <div class="brand">
-      <div class="brand-mark">◆</div>
-      <div class="brand-txt">
-        <div class="brand-name">AUTH</div>
-        <div class="brand-sub">{{ GAME_NAME|upper }}</div>
+
+<header class="sticky top-0 z-40">
+  <div style="background:rgba(7,7,11,.72);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,0.08)">
+    <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-cyan-400 flex items-center justify-center text-base shadow-lg shadow-violet-600/30">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div class="leading-tight">
+          <div class="font-extrabold text-sm tracking-wide">ASHWIN</div>
+          <div class="text-[10px] text-white/40 uppercase tracking-widest">Admin Panel</div>
+        </div>
       </div>
-    </div>
-    <div class="topbar-right">
-      <span class="admin-chip">{{ session.get('admin','1') }}</span>
-      <a class="icon-btn" href="{{ url_for('logout') }}" title="Logout">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-      </a>
+      <div class="flex items-center gap-2">
+        <span class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-[11px] font-semibold">
+          <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Online
+        </span>
+        <span class="hidden sm:inline-flex px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-semibold text-white/70">
+          <i class="fa-solid fa-user-shield mr-1.5 text-violet-400"></i>{{ session.get('admin','admin') }}
+        </span>
+        <a href="{{ url_for('logout') }}"
+           class="w-10 h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 flex items-center justify-center transition"
+           title="Logout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </a>
+      </div>
     </div>
   </div>
 </header>
 
-<main class="main">
+<main class="max-w-5xl mx-auto px-4 pt-5 relative z-10 fade-in">
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="flashes">
+      <div class="space-y-3 mb-5">
       {% for cat, msg in messages %}
-        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        <div class="flash flex items-start justify-between gap-3 p-3.5 rounded-2xl border text-sm
+          {% if cat == 'success' %}bg-green-500/10 border-green-500/25 text-green-300
+          {% else %}bg-red-500/10 border-red-500/25 text-red-300{% endif %}">
+          <div class="flex items-start gap-3">
+            <i class="fa-solid {% if cat == 'success' %}fa-circle-check{% else %}fa-circle-exclamation{% endif %} mt-0.5"></i>
+            <span class="break-all">{{ msg }}</span>
+          </div>
+          <button onclick="this.parentElement.remove()" class="text-white/40 hover:text-white text-lg leading-none">&times;</button>
+        </div>
       {% endfor %}
       </div>
     {% endif %}
@@ -47,21 +217,118 @@
 </main>
 
 <nav class="tabbar">
+
   <a href="{{ url_for('dashboard') }}" class="tab {% if request.endpoint=='dashboard' %}active{% endif %}">
-    <span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
+    <span class="tab-ico"><i class="fa-solid fa-house"></i></span>
     <span class="tab-lbl">Home</span>
   </a>
-  <a href="{{ url_for('keys_list') }}" class="tab {% if request.endpoint in ['keys_list','key_new','key_edit'] %}active{% endif %}">
-    <span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.5 12.5 19 4l3 3-2 2-2-2-2.5 2.5L18 12l-3 3-2.5-2.5"/></svg></span>
+
+  <a href="{{ url_for('keys_list') }}" class="tab {% if request.endpoint in ['keys_list','key_edit','key_detail'] %}active{% endif %}">
+    <span class="tab-ico"><i class="fa-solid fa-key"></i></span>
     <span class="tab-lbl">Keys</span>
   </a>
-  <a href="{{ url_for('key_new') }}" class="tab tab-add">
-    <span class="tab-ico">+</span><span class="tab-lbl">New</span>
+
+  <a href="{{ url_for('key_new') }}" class="tab tab-add" title="Create Key">
+    <span class="tab-ico"><i class="fa-solid fa-plus"></i></span>
   </a>
+
   <a href="{{ url_for('logs_view') }}" class="tab {% if request.endpoint=='logs_view' %}active{% endif %}">
-    <span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg></span>
+    <span class="tab-ico"><i class="fa-solid fa-wave-square"></i></span>
     <span class="tab-lbl">Logs</span>
   </a>
+
+  <button type="button" class="tab" id="moreBtn">
+    <span class="tab-ico"><i class="fa-solid fa-ellipsis"></i></span>
+    <span class="tab-lbl">More</span>
+  </button>
+
 </nav>
+
+<!-- Bottom Sheet -->
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Quick Access</div>
+  <div class="sheet-grid">
+    <a href="{{ url_for('templates_list') }}" class="sheet-item">
+      <i class="fa-solid fa-layer-group"></i>
+      <span>Templates</span>
+    </a>
+    <a href="{{ url_for('webhooks_list') }}" class="sheet-item">
+      <i class="fa-solid fa-bolt"></i>
+      <span>Webhooks</span>
+    </a>
+    <a href="{{ url_for('api_ping') }}" target="_blank" class="sheet-item">
+      <i class="fa-solid fa-signal"></i>
+      <span>API Status</span>
+    </a>
+    <a href="{{ url_for('keys_export', format='csv') }}" class="sheet-item">
+      <i class="fa-solid fa-file-csv"></i>
+      <span>Export CSV</span>
+    </a>
+    <a href="{{ url_for('keys_export', format='json') }}" class="sheet-item">
+      <i class="fa-solid fa-file-code"></i>
+      <span>Export JSON</span>
+    </a>
+    <a href="{{ url_for('keys_list') }}" class="sheet-item danger">
+      <i class="fa-solid fa-file-import"></i>
+      <span>Import</span>
+    </a>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  /* Toast */
+  let toastTimer;
+  window.toast = function(msg) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  };
+
+  /* Copy */
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-copy]');
+    if (!el) return;
+    e.preventDefault();
+    const text = el.dataset.copy;
+    const done = () => window.toast('Copied: ' + text);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+    } else fallbackCopy(text, done);
+  });
+  function fallbackCopy(text, cb) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); cb(); } catch(_) {}
+    document.body.removeChild(ta);
+  }
+
+  /* Flash auto-dismiss */
+  document.querySelectorAll('.flash').forEach(f => {
+    setTimeout(() => {
+      f.style.transition = 'opacity .4s, transform .4s';
+      f.style.opacity = '0';
+      f.style.transform = 'translateY(-6px)';
+      setTimeout(() => f.remove(), 400);
+    }, 5000);
+  });
+
+  /* Bottom sheet */
+  const sheet = document.getElementById('sheet');
+  const backdrop = document.getElementById('sheetBackdrop');
+  const moreBtn = document.getElementById('moreBtn');
+  function openSheet() { sheet.classList.add('show'); backdrop.classList.add('show'); }
+  function closeSheet() { sheet.classList.remove('show'); backdrop.classList.remove('show'); }
+  moreBtn?.addEventListener('click', openSheet);
+  backdrop?.addEventListener('click', closeSheet);
+</script>
+{% block scripts %}{% endblock %}
 </body>
 </html>
