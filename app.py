@@ -18,13 +18,11 @@ ADMIN_PASS  = "1"
 AUTH_SECRET = os.environ.get("PANEL_SECRET", "change_this_secret_string_2025")
 GAME_NAME   = os.environ.get("PANEL_GAME",   "Ashwin")
 DB_PATH     = os.environ.get("PANEL_DB",     "panel.db")
-AUTO_BAN_IP_THRESHOLD = int(os.environ.get("AUTO_BAN_IPS", "0"))  # 0 = off
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("PANEL_SESSION", "change_session_secret_xyz")
 
 
-# ============ DB ============
 def get_db():
     if "db" not in g:
         g.db = sqlite3.connect(DB_PATH)
@@ -32,11 +30,13 @@ def get_db():
         g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
 
+
 @app.teardown_appcontext
 def close_db(e=None):
     db = g.pop("db", None)
     if db is not None:
         db.close()
+
 
 def init_db():
     db = sqlite3.connect(DB_PATH)
@@ -92,7 +92,6 @@ def init_db():
     db.close()
 
 
-# ============ WEBHOOKS ============
 def _send_webhook(event, payload):
     try:
         db = sqlite3.connect(DB_PATH)
@@ -116,11 +115,11 @@ def _send_webhook(event, payload):
     except Exception as e:
         app.logger.warning(f"[webhook] error: {e}")
 
+
 def fire_webhook(event, payload):
     threading.Thread(target=_send_webhook, args=(event, payload), daemon=True).start()
 
 
-# ============ HELPERS ============
 def log_event(action, key_text="", hwid="", ip="", message=""):
     db = get_db()
     db.execute(
@@ -128,6 +127,7 @@ def log_event(action, key_text="", hwid="", ip="", message=""):
         (int(time.time()), key_text, hwid, ip, action, message)
     )
     db.commit()
+
 
 def login_required(f):
     @wraps(f)
@@ -137,27 +137,33 @@ def login_required(f):
         return f(*a, **kw)
     return wrapper
 
+
 def fmt_ts(ts):
     if not ts: return "—"
     return datetime.fromtimestamp(ts).strftime("%d %b %H:%M")
+
 
 def fmt_ts_full(ts):
     if not ts: return "—"
     return datetime.fromtimestamp(ts).strftime("%d %b %Y, %H:%M")
 
+
 def fmt_date(ts):
     if not ts: return "—"
     return datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+
 
 def gen_key():
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     parts = ["".join(secrets.choice(alphabet) for _ in range(5)) for _ in range(3)]
     return "ASH-" + "-".join(parts)
 
+
 def key_status(row):
     if row["banned"]: return "banned"
     if row["expires_at"] < int(time.time()): return "expired"
     return "active"
+
 
 def human_left(expires_at):
     diff = expires_at - int(time.time())
@@ -170,21 +176,25 @@ def human_left(expires_at):
     if h > 0: return f"{h}h {m}m left"
     return f"{m}m left"
 
+
 def client_ip():
     if request.headers.get("X-Forwarded-For"):
         return request.headers["X-Forwarded-For"].split(",")[0].strip()
     return request.remote_addr or ""
 
+
 @app.context_processor
 def inject_globals():
     return {"GAME_NAME": GAME_NAME, "human_left": human_left}
+
 
 @app.before_request
 def _ensure_db():
     init_db()
 
 
-# ============ AUTH ============
+# ==================== AUTH ====================
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -197,13 +207,15 @@ def login():
         flash("Invalid credentials", "error")
     return render_template("login.html")
 
+
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
 
 
-# ============ DASHBOARD ============
+# ==================== DASHBOARD ====================
+
 @app.route("/")
 @login_required
 def dashboard():
@@ -225,7 +237,6 @@ def dashboard():
 def api_analytics():
     db = get_db()
     now = int(time.time())
-
     today_start = int(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
     days = []
     for i in range(6, -1, -1):
@@ -248,8 +259,7 @@ def api_analytics():
     banned  = db.execute("SELECT COUNT(*) c FROM license_keys WHERE banned=1").fetchone()["c"]
 
     top = db.execute("""
-        SELECT k.license_key, k.max_devices,
-               COUNT(a.id) AS device_count
+        SELECT k.license_key, k.max_devices, COUNT(a.id) AS device_count
         FROM license_keys k
         LEFT JOIN activations a ON a.key_id = k.id
         GROUP BY k.id
@@ -264,7 +274,8 @@ def api_analytics():
     })
 
 
-# ============ KEYS LIST ============
+# ==================== KEYS LIST ====================
+
 @app.route("/keys")
 @login_required
 def keys_list():
@@ -307,7 +318,8 @@ def keys_list():
     return render_template("keys.html", keys=keys, q=q, status_filter=status_filter)
 
 
-# ============ KEY DETAIL ============
+# ==================== KEY DETAIL ====================
+
 @app.route("/keys/<int:kid>")
 @login_required
 def key_detail(kid):
@@ -329,7 +341,8 @@ def key_detail(kid):
                            now=int(time.time()))
 
 
-# ============ CREATE / EDIT ============
+# ==================== CREATE / EDIT ====================
+
 def _parse_duration(form):
     val = form.get("duration", "").strip()
     unit = form.get("unit", "days").strip()
@@ -423,6 +436,8 @@ def key_edit(kid):
                            templates=templates, fmt_ts=fmt_ts)
 
 
+# ==================== DELETE / BAN / UNBAN / RESET ====================
+
 @app.route("/keys/<int:kid>/delete", methods=["POST"])
 @login_required
 def key_delete(kid):
@@ -458,9 +473,7 @@ def key_unban(kid):
     db.execute("UPDATE license_keys SET banned=0, banned_reason='' WHERE id=?", (kid,))
     db.commit()
     row = db.execute("SELECT license_key FROM license_keys WHERE id=?", (kid,)).fetchone()
-    k = row["license_key"] if row else ""
-    log_event("key_unban", key_text=k)
-    fire_webhook("key_unban", {"key": k})
+    log_event("key_unban", key_text=row["license_key"] if row else "")
     return redirect(request.referrer or url_for("keys_list"))
 
 
@@ -476,14 +489,14 @@ def key_reset_devices(kid):
     return redirect(request.referrer or url_for("keys_list"))
 
 
-# ============ BULK ============
+# ==================== BULK ====================
+
 @app.route("/keys/bulk", methods=["POST"])
 @login_required
 def keys_bulk():
     action = request.form.get("action", "")
-    ids_raw = request.form.getlist("ids")
     ids = []
-    for x in ids_raw:
+    for x in request.form.getlist("ids"):
         try:
             ids.append(int(x))
         except ValueError:
@@ -494,50 +507,38 @@ def keys_bulk():
         return redirect(url_for("keys_list"))
 
     db = get_db()
-    placeholders = ",".join("?" * len(ids))
+    ph = ",".join("?" * len(ids))
 
     if action == "delete":
-        db.execute(f"DELETE FROM license_keys WHERE id IN ({placeholders})", ids)
+        db.execute(f"DELETE FROM license_keys WHERE id IN ({ph})", ids)
         db.commit()
-        msg = f"Deleted {len(ids)} key(s)"
-        log_event("bulk_delete", message=f"{len(ids)} keys")
+        flash(f"Deleted {len(ids)} key(s)", "success")
     elif action == "ban":
-        reason = request.form.get("reason", "").strip() or "Bulk ban by admin"
-        db.execute(f"UPDATE license_keys SET banned=1, banned_reason=? WHERE id IN ({placeholders})",
+        reason = request.form.get("reason", "").strip() or "Bulk ban"
+        db.execute(f"UPDATE license_keys SET banned=1, banned_reason=? WHERE id IN ({ph})",
                    [reason] + ids)
         db.commit()
-        msg = f"Banned {len(ids)} key(s)"
-        log_event("bulk_ban", message=f"{len(ids)} keys")
+        flash(f"Banned {len(ids)} key(s)", "success")
     elif action == "unban":
-        db.execute(f"UPDATE license_keys SET banned=0, banned_reason='' WHERE id IN ({placeholders})", ids)
+        db.execute(f"UPDATE license_keys SET banned=0, banned_reason='' WHERE id IN ({ph})", ids)
         db.commit()
-        msg = f"Unbanned {len(ids)} key(s)"
-        log_event("bulk_unban", message=f"{len(ids)} keys")
+        flash(f"Unbanned {len(ids)} key(s)", "success")
     elif action == "extend":
         try:
             days = int(request.form.get("extend_days", "7") or 7)
         except ValueError:
             days = 7
         if days < 1: days = 7
-        secs = days * 86400
         now = int(time.time())
-        db.execute(f"""
-            UPDATE license_keys
-            SET expires_at = MAX(expires_at, ?) + ?
-            WHERE id IN ({placeholders})
-        """, [now, secs] + ids)
+        db.execute(f"UPDATE license_keys SET expires_at = MAX(expires_at, ?) + ? WHERE id IN ({ph})",
+                   [now, days * 86400] + ids)
         db.commit()
-        msg = f"Extended {len(ids)} key(s) by {days} day(s)"
-        log_event("bulk_extend", message=f"{len(ids)} keys +{days}d")
-    else:
-        flash("Unknown action", "error")
-        return redirect(url_for("keys_list"))
-
-    flash(msg, "success")
+        flash(f"Extended {len(ids)} key(s) by {days} days", "success")
     return redirect(url_for("keys_list"))
 
 
-# ============ EXPORT / IMPORT ============
+# ==================== EXPORT / IMPORT ====================
+
 @app.route("/keys/export")
 @login_required
 def keys_export():
@@ -584,13 +585,15 @@ def keys_import():
         default_days = int(request.form.get("default_days", "30") or 30)
     except ValueError:
         default_days = 30
-    if default_days < 1: default_days = 30
+    if default_days < 1:
+        default_days = 30
 
     try:
         max_dev = int(request.form.get("max_devices", "1") or 1)
     except ValueError:
         max_dev = 1
-    if max_dev < 1: max_dev = 1
+    if max_dev < 1:
+        max_dev = 1
 
     content = f.read().decode("utf-8", errors="ignore")
     lines = [ln.strip() for ln in content.splitlines() if ln.strip()]
@@ -623,7 +626,8 @@ def keys_import():
     return redirect(url_for("keys_list"))
 
 
-# ============ LOGS ============
+# ==================== LOGS ====================
+
 @app.route("/logs")
 @login_required
 def logs_view():
@@ -639,7 +643,8 @@ def logs_view():
     return render_template("logs.html", logs=rows, fmt_ts=fmt_ts, action_filter=action_filter)
 
 
-# ============ TEMPLATES ============
+# ==================== TEMPLATES ====================
+
 @app.route("/templates")
 @login_required
 def templates_list():
@@ -661,7 +666,8 @@ def template_new():
     mult = {"minutes": 60, "hours": 3600, "days": 86400}.get(unit, 86400)
     try:
         n = int(val)
-        if n <= 0: raise ValueError
+        if n <= 0:
+            raise ValueError
     except (ValueError, TypeError):
         flash("Invalid duration", "error")
         return redirect(url_for("templates_list"))
@@ -671,7 +677,8 @@ def template_new():
         max_dev = int(request.form.get("max_devices", "1") or 1)
     except ValueError:
         max_dev = 1
-    if max_dev < 1: max_dev = 1
+    if max_dev < 1:
+        max_dev = 1
 
     category = request.form.get("category", "").strip()
 
@@ -696,7 +703,8 @@ def template_delete(tid):
     return redirect(url_for("templates_list"))
 
 
-# ============ WEBHOOKS ============
+# ==================== WEBHOOKS ====================
+
 @app.route("/webhooks")
 @login_required
 def webhooks_list():
@@ -749,19 +757,19 @@ def webhook_test(wid):
     if not row:
         flash("Webhook not found", "error")
         return redirect(url_for("webhooks_list"))
-    fire_webhook("test", {"message": "Test from Ashwin Panel", "url": row["url"]})
+    fire_webhook("test", {"message": "Test from Ashwin Panel"})
     flash("Test sent! Check your endpoint.", "success")
     return redirect(url_for("webhooks_list"))
 
 
-# ============ API ============
+# ==================== API ====================
+
 @app.route("/api/auth", methods=["POST"])
 def api_auth():
-    game     = request.form.get("game", GAME_NAME).strip() or GAME_NAME
     user_key = (request.form.get("user_key") or request.form.get("key") or
                 request.form.get("license") or "").strip()
-    hwid     = (request.form.get("serial") or request.form.get("hwid") or
-                request.form.get("device") or "").strip()
+    hwid = (request.form.get("serial") or request.form.get("hwid") or
+            request.form.get("device") or "").strip()
     ip = client_ip()
 
     if not user_key or not hwid:
@@ -773,12 +781,10 @@ def api_auth():
 
     if not row:
         log_event("auth_fail", key_text=user_key, hwid=hwid, ip=ip, message="Key not found")
-        fire_webhook("auth_fail", {"key": user_key, "reason": "Key not found", "hwid": hwid, "ip": ip})
         return jsonify({"status": False, "reason": "Invalid key"})
 
     if row["banned"]:
-        log_event("auth_fail", key_text=user_key, hwid=hwid, ip=ip,
-                  message="Banned: " + (row["banned_reason"] or ""))
+        log_event("auth_fail", key_text=user_key, hwid=hwid, ip=ip, message="Banned")
         return jsonify({"status": False, "reason": "Key banned"})
 
     if row["expires_at"] < int(time.time()):
@@ -787,8 +793,8 @@ def api_auth():
 
     act = db.execute("SELECT * FROM activations WHERE key_id=? AND hwid=?",
                      (row["id"], hwid)).fetchone()
+    is_new = False
 
-    is_new_device = False
     if act:
         db.execute("UPDATE activations SET last_seen=?, ip=? WHERE id=?",
                    (int(time.time()), ip, act["id"]))
@@ -797,36 +803,19 @@ def api_auth():
         if used >= row["max_devices"]:
             log_event("auth_fail", key_text=user_key, hwid=hwid, ip=ip,
                       message=f"Max devices ({used}/{row['max_devices']})")
-            fire_webhook("auth_fail", {"key": user_key, "reason": "Max devices",
-                                       "hwid": hwid, "ip": ip})
             return jsonify({"status": False, "reason": "Max devices reached for this key"})
         db.execute("INSERT INTO activations(key_id, hwid, first_seen, last_seen, ip) VALUES (?,?,?,?,?)",
                    (row["id"], hwid, int(time.time()), int(time.time()), ip))
-        is_new_device = True
+        is_new = True
 
     db.commit()
-
-    # Auto-ban logic
-    if AUTO_BAN_IP_THRESHOLD > 0:
-        distinct_ips = db.execute(
-            "SELECT COUNT(DISTINCT ip) c FROM activations WHERE key_id=? AND ip != ''",
-            (row["id"],)
-        ).fetchone()["c"]
-        if distinct_ips > AUTO_BAN_IP_THRESHOLD:
-            db.execute("UPDATE license_keys SET banned=1, banned_reason=? WHERE id=?",
-                       (f"Auto-ban: {distinct_ips} unique IPs", row["id"]))
-            db.commit()
-            log_event("auto_ban", key_text=user_key, hwid=hwid, ip=ip,
-                      message=f"{distinct_ips} unique IPs")
-            fire_webhook("key_ban", {"key": user_key, "reason": f"Auto-ban ({distinct_ips} IPs)", "auto": True})
-            return jsonify({"status": False, "reason": "Key banned"})
 
     token = hashlib.md5(f"{GAME_NAME}-{user_key}-{hwid}-{AUTH_SECRET}".encode()).hexdigest()
     expire_str = fmt_date(row["expires_at"])
     rng = int(time.time())
 
     log_event("auth_ok", key_text=user_key, hwid=hwid, ip=ip, message=f"exp={expire_str}")
-    if is_new_device:
+    if is_new:
         fire_webhook("key_activate", {
             "key": user_key, "hwid": hwid, "ip": ip,
             "expires": expire_str, "new_device": True
@@ -846,10 +835,12 @@ def api_ping():
     return jsonify({"ok": True, "ts": int(time.time())})
 
 
-# ============ ERROR HANDLERS ============
+# ==================== ERROR HANDLERS ====================
+
 @app.errorhandler(404)
 def not_found(e):
     return render_template("error.html", code=404, msg="Page not found"), 404
+
 
 @app.errorhandler(500)
 def server_error(e):
