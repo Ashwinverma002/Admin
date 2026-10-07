@@ -18,12 +18,13 @@ ADMIN_PASS  = "1"
 AUTH_SECRET = os.environ.get("PANEL_SECRET", "change_this_secret_string_2025")
 GAME_NAME   = os.environ.get("PANEL_GAME",   "Ashwin")
 DB_PATH     = os.environ.get("PANEL_DB",     "panel.db")
-AUTO_BAN_IP_THRESHOLD = int(os.environ.get("AUTO_BAN_IPS", "8"))  # 0 = off
+AUTO_BAN_IP_THRESHOLD = int(os.environ.get("AUTO_BAN_IPS", "0"))  # 0 = off
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("PANEL_SESSION", "change_session_secret_xyz")
 
 
+# ============ DB ============
 def get_db():
     if "db" not in g:
         g.db = sqlite3.connect(DB_PATH)
@@ -90,16 +91,8 @@ def init_db():
     db.commit()
     db.close()
 
-def log_event(action, key_text="", hwid="", ip="", message=""):
-    db = get_db()
-    db.execute(
-        "INSERT INTO logs(ts, key_text, hwid, ip, action, message) VALUES (?,?,?,?,?,?)",
-        (int(time.time()), key_text, hwid, ip, action, message)
-    )
-    db.commit()
 
-
-# ---------------- Webhooks ----------------
+# ============ WEBHOOKS ============
 def _send_webhook(event, payload):
     try:
         db = sqlite3.connect(DB_PATH)
@@ -127,7 +120,15 @@ def fire_webhook(event, payload):
     threading.Thread(target=_send_webhook, args=(event, payload), daemon=True).start()
 
 
-# ---------------- Helpers ----------------
+# ============ HELPERS ============
+def log_event(action, key_text="", hwid="", ip="", message=""):
+    db = get_db()
+    db.execute(
+        "INSERT INTO logs(ts, key_text, hwid, ip, action, message) VALUES (?,?,?,?,?,?)",
+        (int(time.time()), key_text, hwid, ip, action, message)
+    )
+    db.commit()
+
 def login_required(f):
     @wraps(f)
     def wrapper(*a, **kw):
@@ -183,7 +184,7 @@ def _ensure_db():
     init_db()
 
 
-# ---------------- Auth ----------------
+# ============ AUTH ============
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -202,7 +203,7 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ---------------- Dashboard ----------------
+# ============ DASHBOARD ============
 @app.route("/")
 @login_required
 def dashboard():
@@ -225,7 +226,6 @@ def api_analytics():
     db = get_db()
     now = int(time.time())
 
-    # Last 7 days trend
     today_start = int(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
     days = []
     for i in range(6, -1, -1):
@@ -243,12 +243,10 @@ def api_analytics():
             "activated": activated,
         })
 
-    # Status donut
     active  = db.execute("SELECT COUNT(*) c FROM license_keys WHERE banned=0 AND expires_at>?", (now,)).fetchone()["c"]
     expired = db.execute("SELECT COUNT(*) c FROM license_keys WHERE banned=0 AND expires_at<=?", (now,)).fetchone()["c"]
     banned  = db.execute("SELECT COUNT(*) c FROM license_keys WHERE banned=1").fetchone()["c"]
 
-    # Top keys by devices
     top = db.execute("""
         SELECT k.license_key, k.max_devices,
                COUNT(a.id) AS device_count
@@ -266,7 +264,7 @@ def api_analytics():
     })
 
 
-# ---------------- Keys List ----------------
+# ============ KEYS LIST ============
 @app.route("/keys")
 @login_required
 def keys_list():
@@ -309,7 +307,7 @@ def keys_list():
     return render_template("keys.html", keys=keys, q=q, status_filter=status_filter)
 
 
-# ---------------- Key Detail ----------------
+# ============ KEY DETAIL ============
 @app.route("/keys/<int:kid>")
 @login_required
 def key_detail(kid):
@@ -327,10 +325,11 @@ def key_detail(kid):
         (row["license_key"],)).fetchall()
 
     return render_template("key_detail.html", key=row, used_devices=used,
-                           key_logs=key_logs, fmt_ts=fmt_ts, fmt_ts_full=fmt_ts_full)
+                           key_logs=key_logs, fmt_ts=fmt_ts, fmt_ts_full=fmt_ts_full,
+                           now=int(time.time()))
 
 
-# ---------------- Create / Edit ----------------
+# ============ CREATE / EDIT ============
 def _parse_duration(form):
     val = form.get("duration", "").strip()
     unit = form.get("unit", "days").strip()
@@ -380,7 +379,10 @@ def key_new():
         except sqlite3.IntegrityError:
             flash(f"Key already exists: {k}", "error")
 
-    templates = db.execute("SELECT * FROM key_templates ORDER BY id DESC").fetchall()
+    try:
+        templates = db.execute("SELECT * FROM key_templates ORDER BY id DESC").fetchall()
+    except sqlite3.OperationalError:
+        templates = []
     return render_template("key_form.html", mode="new", key=None, templates=templates)
 
 
@@ -413,7 +415,10 @@ def key_edit(kid):
         return redirect(url_for("key_detail", kid=kid))
 
     used = db.execute("SELECT * FROM activations WHERE key_id=? ORDER BY last_seen DESC", (kid,)).fetchall()
-    templates = db.execute("SELECT * FROM key_templates ORDER BY id DESC").fetchall()
+    try:
+        templates = db.execute("SELECT * FROM key_templates ORDER BY id DESC").fetchall()
+    except sqlite3.OperationalError:
+        templates = []
     return render_template("key_form.html", mode="edit", key=row, used_devices=used,
                            templates=templates, fmt_ts=fmt_ts)
 
@@ -468,10 +473,10 @@ def key_reset_devices(kid):
     row = db.execute("SELECT license_key FROM license_keys WHERE id=?", (kid,)).fetchone()
     log_event("key_reset_hwid", key_text=row["license_key"] if row else "")
     flash("Devices reset", "success")
-    return redirect(url_for("key_detail", kid=kid))
+    return redirect(request.referrer or url_for("keys_list"))
 
 
-# ---------------- Bulk Operations ----------------
+# ============ BULK ============
 @app.route("/keys/bulk", methods=["POST"])
 @login_required
 def keys_bulk():
@@ -516,7 +521,6 @@ def keys_bulk():
         if days < 1: days = 7
         secs = days * 86400
         now = int(time.time())
-        # Extend from later of (now, current expiry)
         db.execute(f"""
             UPDATE license_keys
             SET expires_at = MAX(expires_at, ?) + ?
@@ -533,7 +537,7 @@ def keys_bulk():
     return redirect(url_for("keys_list"))
 
 
-# ---------------- Export / Import ----------------
+# ============ EXPORT / IMPORT ============
 @app.route("/keys/export")
 @login_required
 def keys_export():
@@ -619,7 +623,7 @@ def keys_import():
     return redirect(url_for("keys_list"))
 
 
-# ---------------- Logs ----------------
+# ============ LOGS ============
 @app.route("/logs")
 @login_required
 def logs_view():
@@ -635,7 +639,7 @@ def logs_view():
     return render_template("logs.html", logs=rows, fmt_ts=fmt_ts, action_filter=action_filter)
 
 
-# ---------------- Templates ----------------
+# ============ TEMPLATES ============
 @app.route("/templates")
 @login_required
 def templates_list():
@@ -692,7 +696,7 @@ def template_delete(tid):
     return redirect(url_for("templates_list"))
 
 
-# ---------------- Webhooks ----------------
+# ============ WEBHOOKS ============
 @app.route("/webhooks")
 @login_required
 def webhooks_list():
@@ -750,7 +754,7 @@ def webhook_test(wid):
     return redirect(url_for("webhooks_list"))
 
 
-# ---------------- API ----------------
+# ============ API ============
 @app.route("/api/auth", methods=["POST"])
 def api_auth():
     game     = request.form.get("game", GAME_NAME).strip() or GAME_NAME
@@ -802,7 +806,7 @@ def api_auth():
 
     db.commit()
 
-    # Auto-ban if too many distinct IPs
+    # Auto-ban logic
     if AUTO_BAN_IP_THRESHOLD > 0:
         distinct_ips = db.execute(
             "SELECT COUNT(DISTINCT ip) c FROM activations WHERE key_id=? AND ip != ''",
@@ -842,6 +846,7 @@ def api_ping():
     return jsonify({"ok": True, "ts": int(time.time())})
 
 
+# ============ ERROR HANDLERS ============
 @app.errorhandler(404)
 def not_found(e):
     return render_template("error.html", code=404, msg="Page not found"), 404
@@ -857,5 +862,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
     print(f"[panel] running on http://0.0.0.0:{port}")
     print(f"[panel] admin user: {ADMIN_USER}   pass: {ADMIN_PASS}")
-    print(f"[panel] auto-ban IP threshold: {AUTO_BAN_IP_THRESHOLD}")
     app.run(host="0.0.0.0", port=port, debug=False)
